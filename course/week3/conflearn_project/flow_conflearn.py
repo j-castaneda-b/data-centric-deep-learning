@@ -132,7 +132,25 @@ class TrainIdentifyReview(FlowSpec):
     kf = KFold(n_splits=3)    # create kfold splits
 
     for train_index, test_index in kf.split(X):
-      probs_ = None
+  
+      train_X, test_X = torch.from_numpy(X[train_index]).float(), torch.from_numpy(X[test_index]).float()
+      train_y, test_y = torch.from_numpy(y[train_index]).long(), torch.from_numpy(y[test_index])
+
+      train_dataset = TensorDataset(train_X, train_y)
+      test_dataset = TensorDataset(test_X, test_y)
+
+      train_dataloader = DataLoader(train_dataset, batch_size=self.config.train.optimizer.batch_size, shuffle=True)
+      test_dataloader = DataLoader(test_dataset, batch_size = self.config.train.optimizer.batch_size)
+
+      system = SentimentClassifierSystem(self.config)
+
+      trainer = Trainer(
+      max_epochs = self.config.train.optimizer.max_epochs)
+
+      trainer.fit(system, train_dataloader)
+
+      probs_ = trainer.predict(system, dataloaders=test_dataloader)
+      probs_ = torch.cat(probs_).squeeze(1).numpy()
       # ===============================================
       # FILL ME OUT
       # 
@@ -196,8 +214,9 @@ class TrainIdentifyReview(FlowSpec):
     prob = np.stack([1 - prob, prob]).T
   
     # rank label indices by issues
-    ranked_label_issues = None
-    
+    ranked_label_issues = find_label_issues(np.asarray(self.all_df.label), 
+                                            prob,
+                                            return_indices_ranked_by = "self_confidence")
     # =============================
     # FILL ME OUT
     # 
@@ -309,6 +328,9 @@ class TrainIdentifyReview(FlowSpec):
     # dm.test_dataset.data = test slice of self.all_df
     # # ====================================
 
+    dm.train_dataset.data = self.all_df.iloc[0:train_size]
+    dm.dev_dataset.data = self.all_df.iloc[train_size:(train_size+dev_size)]
+    dm.test_dataset.data = self.all_df.iloc[(train_size+dev_size):]
     # start from scratch
     system = SentimentClassifierSystem(self.config)
     trainer = Trainer(

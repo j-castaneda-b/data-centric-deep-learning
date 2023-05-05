@@ -35,7 +35,7 @@ class PredictionTask(Task):
     return self.run(*args, **kwargs)
   
   def get_system(self):
-    system = None
+    system = DigitClassifierSystem.load_from_checkpoint(MODEL_PATH)
     # ================================
     # FILL ME OUT
     # 
@@ -89,7 +89,7 @@ def predict_single(self, data):
   results = {'label': None, 'probs': None}
 
   with torch.no_grad():
-    logits = None
+    logits = self.system.predict_step(im)
     # ================================
     # FILL ME OUT
     # 
@@ -109,7 +109,7 @@ def predict_single(self, data):
     label = torch.argmax(logits, dim=1)  # shape (1)
     label = label.item()                 # tensor -> integer
 
-    probs = None
+    probs = F.softmax(logits,dim=1)
     # ================================
     # FILL ME OUT
     # 
@@ -135,7 +135,7 @@ def predict_single(self, data):
   # why we need Celery.
   # 
   # Uncomment me when you are told to in the notes!
-  # time.sleep(5)
+  time.sleep(5)
   # ================================
 
   return results
